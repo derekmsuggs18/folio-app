@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Folio</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#141009">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  /* System font faces — no external requests needed */
+  :root {
+    --font-serif: 'Palatino Linotype', Palatino, 'Book Antiqua', 'Georgia', serif;
+    --font-display: 'Georgia', 'Palatino Linotype', Palatino, serif;
+    --font-mono: 'Menlo', 'Consolas', 'Courier New', monospace;
+  }
+</style>
+<style>
+:root {
+  --ink: #141009;
+  --ink2: #1e1610;
+  --accent: #8b2e12;
+  --accent2: #b53a18;
+  --gold: #c8973a;
+  --gold2: #e0ab45;
+  --panel: #251a0f;
+  --panel2: #322213;
+  --panel3: #3e2b18;
+  --border: #55391f;
+  --text: #ecdcc6;
+  --text2: #b89870;
+  --text3: #7a6040;
+  --green: #3d7a52;
+  --green2: #4e9a68;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --font-serif: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --font-display: Georgia, 'Palatino Linotype', Palatino, serif;
+  --font-mono: Menlo, Consolas, 'Courier New', monospace;
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%; height: 100dvh;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-serif);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* ── SCREEN STACK ── */
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  background: var(--panel);
+  transform: translateX(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  will-change: transform;
+  overflow: hidden;
+}
+.screen.active { transform: translateX(0); }
+.screen.behind  { transform: translateX(-30%); }
+
+/* ── TOP BAR ── */
+.topbar {
+  background: var(--ink);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: calc(var(--safe-top) + 10px) 16px 10px;
+  gap: 12px; flex-shrink: 0;
+  min-height: calc(var(--safe-top) + 52px);
+}
+.tb-back {
+  background: none; border: none; color: var(--gold);
+  font-size: 22px; cursor: pointer; padding: 4px 8px 4px 0;
+  display: flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono); font-size: 13px;
+  letter-spacing: .5px;
+}
+.tb-title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 18px; font-weight: 700;
+  color: var(--gold); letter-spacing: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tb-title.sub {
+  font-size: 15px; font-weight: 400; font-style: italic; color: var(--text);
+}
+.tb-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.tb-btn {
+  background: var(--panel2); border: 1px solid var(--border);
+  color: var(--text2); padding: 7px 12px; border-radius: 6px;
+  cursor: pointer; font-size: 12px; font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.tb-btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tb-btn.gold { background: transparent; border-color: var(--gold); color: var(--gold); }
+
+/* ── SCROLL AREA ── */
+.scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.scroll-pad { padding-bottom: calc(var(--safe-bot) + 80px); }
+
+/* ── LIBRARY SCREEN ── */
+#sLibrary { transform: translateX(0); } /* always base */
+
+.lib-hero {
+  background: var(--ink2);
+  border-bottom: 2px solid var(--gold);
+  padding: 0 16px 14px;
+}
+.search-wrap { position: relative; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; pointer-events: none; }
+.search-inp {
+  width: 100%; background: var(--panel2); border: 1px solid var(--border);
+  color: var(--text); padding: 10px 12px 10px 36px;
+  border-radius: 8px; font-size: 15px; font-family: var(--font-serif);
+  outline: none; transition: border-color .2s;
+  -webkit-appearance: none;
+}
+.search-inp:focus { border-color: var(--gold); }
+.search-inp::placeholder { color: var(--text3); }
+
+.book-card {
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+  margin: 0 16px 10px; cursor: pointer;
+  display: flex; gap: 14px; align-items: flex-start;
+  transition: border-color .15s, background .15s;
+  -webkit-user-select: none; user-select: none;
+}
+.book-card:active { background: var(--panel3); border-color: var(--gold); }
+.book-card-cover {
+  width: 44px; height: 58px; border-radius: 4px;
+  background: var(--accent); display: flex; align-items: center;
+  justify-content: center; font-size: 22px; flex-shrink: 0;
+  box-shadow: 2px 3px 0 rgba(0,0,0,.5);
+}
+.book-card-info { flex: 1; min-width: 0; }
+.bci-title {
+  font-family: var(--font-display); font-size: 15px;
+  color: var(--text); line-height: 1.3; margin-bottom: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bci-author { font-size: 12px; color: var(--text2); font-style: italic; margin-bottom: 6px; }
+.bci-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+.bci-tag { font-size: 10px; padding: 2px 7px; border-radius: 8px; background: var(--panel); border: 1px solid var(--gold); color: var(--gold); font-family: var(--font-mono); }
+.bci-prog-row { display: flex; align-items: center; gap: 8px; }
+.bci-prog-track { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.bci-prog-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width .4s; }
+.bci-prog-lbl { font-family: var(--font-mono); font-size: 10px; color: var(--text3); white-space: nowrap; }
+.bci-arrow { color: var(--text3); font-size: 18px; align-self: center; flex-shrink: 0; }
+
+.section-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 16px 8px;
+}
+.section-lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--gold); text-transform: uppercase; }
+
+.empty-state {
+  text-align: center; padding: 60px 32px;
+  color: var(--text2); font-style: italic; font-size: 14px; line-height: 1.8;
+}
+.empty-icon { font-size: 52px; opacity: .4; margin-bottom: 16px; display: block; animation: float 4s ease-in-out infinite; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+.empty-state h3 { font-family: var(--font-display); font-size: 20px; color: var(--text); margin-bottom: 10px; font-weight: 400; }
+
+/* FAB */
+.fab {
+  position: fixed; bottom: calc(var(--safe-bot) + 20px); right: 20px;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--accent); border: none; color: #fff;
+  font-size: 26px; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .15s, background .15s;
+  z-index: 10;
+}
+.fab:active { transform: scale(.93); background: var(--accent2); }
+
+/* ── BOOK SCREEN ── */
+.book-hero {
+  background: var(--ink2);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 16px; flex-shrink: 0;
+  display: flex; gap: 14px; align-items: flex-start;
+}
+.bh-cover { width: 50px; height: 65px; border-radius: 4px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; box-shadow: 3px 3px 0 rgba(0,0,0,.5); }
+.bh-info { flex: 1; min-width: 0; }
+.bh-title { font-family: var(--font-display); font-size: 16px; color: var(--text); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bh-author { font-size: 12px; color: var(--text2); font-style: italic; margin-bottom: 7px; }
+.bh-prog-row { display: flex; align-items: center; gap: 8px; }
+.bh-prog-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.bh-prog-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width .5s; }
+.bh-prog-lbl { font-family: var(--font-mono); font-size: 10px; color: var(--text3); white-space: nowrap; }
+
+.ch-list-hdr { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px; }
+.ch-lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--gold); text-transform: uppercase; }
+.add-ch-btn {
+  background: var(--panel2); border: 1px solid var(--border); color: var(--text2);
+  padding: 6px 14px; border-radius: 6px; cursor: pointer;
+  font-size: 12px; font-family: var(--font-mono);
+}
+.add-ch-btn:active { background: var(--panel3); border-color: var(--gold); color: var(--gold); }
+
+.ch-card {
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 13px 16px;
+  margin: 0 16px 8px; cursor: pointer;
+  display: flex; align-items: center; gap: 12px;
+  transition: border-color .15s;
+  -webkit-user-select: none; user-select: none;
+}
+.ch-card:active { background: var(--panel3); border-color: var(--accent); }
+.ch-card.reading { border-color: var(--accent); }
+.ch-dots { display: flex; flex-direction: column; gap: 4px; align-items: center; flex-shrink: 0; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+.dot.gold { background: var(--gold); }
+.dot.green { background: var(--green2); }
+.ch-card-info { flex: 1; min-width: 0; }
+.ch-card-num { font-family: var(--font-mono); font-size: 10px; color: var(--text3); margin-bottom: 2px; }
+.ch-card-title { font-size: 14px; color: var(--text); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-card-arrow { color: var(--text3); font-size: 16px; flex-shrink: 0; }
+
+/* ── CHAPTER SCREEN ── */
+.ch-mode-bar {
+  background: var(--ink2); border-bottom: 1px solid var(--border);
+  display: flex; padding: 0 4px;
+  overflow-x: auto; gap: 2px; flex-shrink: 0;
+  scrollbar-width: none;
+}
+.ch-mode-bar::-webkit-scrollbar { display: none; }
+.mode-pill {
+  padding: 10px 14px; cursor: pointer; font-size: 12px;
+  font-family: var(--font-mono); color: var(--text2);
+  border-bottom: 2px solid transparent; white-space: nowrap;
+  transition: all .15s; flex-shrink: 0;
+  background: none; border-top: none; border-left: none; border-right: none;
+}
+.mode-pill.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* READ MODE */
+.read-wrap { max-width: 680px; margin: 0 auto; padding: 16px 20px; }
+
+.tts-bar {
+  background: var(--ink2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 20px;
+}
+.tts-top-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.tts-lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); flex: 1; }
+.tts-ctrl { display: flex; align-items: center; gap: 8px; }
+.tts-play {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--accent); border: none; color: #fff;
+  font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: transform .1s, background .15s;
+}
+.tts-play:active { transform: scale(.92); }
+.tts-play.on { background: var(--green); }
+.tts-stop-btn {
+  background: var(--panel2); border: 1px solid var(--border); color: var(--text2);
+  padding: 8px 14px; border-radius: 8px; font-size: 12px; font-family: var(--font-mono); cursor: pointer;
+}
+.tts-stop-btn:active { border-color: var(--accent); color: var(--accent); }
+.tts-sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-bottom: 10px; }
+.tts-sl-row { display: flex; flex-direction: column; gap: 4px; }
+.tts-sl-lbl { font-family: var(--font-mono); font-size: 10px; color: var(--text3); display: flex; justify-content: space-between; }
+.tts-sl-lbl span { color: var(--gold); }
+input[type=range] { width: 100%; accent-color: var(--gold); cursor: pointer; height: 20px; }
+.tts-voice-sel {
+  width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+  padding: 8px 10px; border-radius: 8px; font-size: 13px; font-family: var(--font-mono);
+  outline: none; -webkit-appearance: none; appearance: none;
+}
+.tts-prog-wrap { margin-top: 10px; }
+.tts-prog { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.tts-prog-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width .3s; width: 0%; }
+.tts-stat { font-family: var(--font-mono); font-size: 10px; color: var(--text3); margin-top: 5px; }
+
+.read-display-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding: 12px 14px; background: var(--ink2); border: 1px solid var(--border); border-radius: 10px; }
+.rdl { font-family: var(--font-mono); font-size: 10px; color: var(--text3); white-space: nowrap; min-width: 32px; }
+.rdl span { display: block; color: var(--gold); }
+
+.para { font-size: 17px; line-height: 1.9; color: var(--text); margin-bottom: 20px; font-weight: 300; border-radius: 4px; transition: background .25s; padding: 2px 4px; }
+.para.hl { background: rgba(200,151,58,.16); }
+
+/* SUMMARY MODE */
+.sum-wrap { max-width: 700px; margin: 0 auto; padding: 16px 20px; }
+.sum-type-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.sum-type-btn {
+  flex: 1; padding: 10px 8px; border-radius: 8px; cursor: pointer;
+  font-size: 12px; font-family: var(--font-mono);
+  border: 1px solid var(--border); color: var(--text2); background: var(--panel2);
+  text-align: center; transition: all .15s;
+}
+.sum-type-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.sum-type-btn:active { opacity: .8; }
+
+.ai-card { background: var(--ink2); border: 1px solid var(--border); border-radius: 12px; padding: 18px; position: relative; overflow: hidden; }
+.ai-card.loading::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg,transparent,rgba(200,151,58,.07),transparent); animation: shim 1.5s infinite; border-radius: 12px; }
+@keyframes shim { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+.ai-card-lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--gold); text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.ai-pulse { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.ai-content { color: var(--text); line-height: 1.7; font-size: 14px; }
+.ai-content h4 { font-family: var(--font-display); font-size: 15px; color: var(--gold); margin: 14px 0 7px; }
+.ai-content ul { padding-left: 18px; margin-bottom: 10px; }
+.ai-content li { margin-bottom: 5px; }
+.ai-content p { margin-bottom: 10px; color: var(--text2); }
+.ai-content strong { color: var(--text); }
+.ai-ph { color: var(--text2); font-style: italic; font-size: 14px; }
+
+.sum-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.sum-gen-btn {
+  flex: 1; min-width: 140px; padding: 13px; border-radius: 10px;
+  background: var(--accent); border: none; color: #fff;
+  font-size: 13px; font-family: var(--font-mono); cursor: pointer;
+  transition: background .15s;
+}
+.sum-gen-btn:active { background: var(--accent2); }
+.sum-gen-btn:disabled { opacity: .5; }
+.sum-aloud-btn {
+  padding: 13px 16px; border-radius: 10px;
+  background: var(--panel2); border: 1px solid var(--border);
+  color: var(--text2); font-size: 13px; font-family: var(--font-mono); cursor: pointer;
+  transition: all .15s; white-space: nowrap;
+}
+.sum-aloud-btn.on { background: var(--green); border-color: var(--green); color: #fff; }
+
+/* NOTES MODE */
+.notes-wrap { max-width: 700px; margin: 0 auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.notes-title { font-family: var(--font-display); font-size: 16px; color: var(--text); font-weight: 400; font-style: italic; }
+.notes-ta {
+  width: 100%; background: var(--ink2); border: 1px solid var(--border);
+  color: var(--text); padding: 14px; font-family: var(--font-serif);
+  font-size: 15px; line-height: 1.75; resize: none; border-radius: 12px;
+  outline: none; transition: border-color .2s; min-height: 200px;
+  -webkit-appearance: none; appearance: none;
+}
+.notes-ta:focus { border-color: var(--gold); }
+.notes-ta::placeholder { color: var(--text3); font-style: italic; }
+.notes-save-row { display: flex; gap: 10px; align-items: center; }
+.notes-save-btn {
+  flex: 1; padding: 13px; border-radius: 10px;
+  background: var(--accent); border: none; color: #fff;
+  font-size: 13px; font-family: var(--font-mono); cursor: pointer;
+}
+.notes-save-btn:active { background: var(--accent2); }
+.saved-flash { font-size: 12px; color: var(--green2); font-family: var(--font-mono); opacity: 0; transition: opacity .3s; }
+.saved-flash.show { opacity: 1; }
+.notes-clear-btn {
+  padding: 13px 16px; border-radius: 10px;
+  background: transparent; border: 1px solid var(--border); color: var(--text2);
+  font-size: 13px; font-family: var(--font-mono); cursor: pointer;
+}
+.notes-hint { font-size: 12px; color: var(--text3); font-style: italic; }
+
+/* PASTE MODE */
+.paste-wrap { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; height: 100%; }
+.paste-hint { font-size: 13px; color: var(--text2); font-style: italic; }
+.paste-ta {
+  flex: 1; width: 100%; background: var(--ink2); border: 1px solid var(--border);
+  color: var(--text); padding: 14px; font-family: var(--font-serif);
+  font-size: 14px; line-height: 1.7; resize: none; border-radius: 12px;
+  outline: none; transition: border-color .2s; min-height: 240px;
+  -webkit-appearance: none;
+}
+.paste-ta:focus { border-color: var(--gold); }
+.paste-save-btn {
+  width: 100%; padding: 14px; border-radius: 10px;
+  background: var(--accent); border: none; color: #fff;
+  font-size: 14px; font-family: var(--font-mono); cursor: pointer;
+  flex-shrink: 0;
+}
+.paste-save-btn:active { background: var(--accent2); }
+
+/* ── BOTTOM SHEET / DRAWER ── */
+.sheet-ov {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  z-index: 200; display: none; align-items: flex-end;
+  backdrop-filter: blur(2px);
+}
+.sheet-ov.open { display: flex; }
+.sheet {
+  background: var(--panel2); border-radius: 18px 18px 0 0;
+  width: 100%; max-height: 92vh; display: flex; flex-direction: column;
+  border-top: 2px solid var(--gold);
+  padding-bottom: var(--safe-bot);
+  animation: sheetUp .28s cubic-bezier(.4,0,.2,1);
+}
+@keyframes sheetUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 10px auto 0; flex-shrink: 0; }
+.sheet-title { font-family: var(--font-display); font-size: 18px; color: var(--text); padding: 14px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sheet-body { overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1; padding: 16px 20px; }
+.sheet-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-shrink: 0; }
+.sheet-btn { flex: 1; padding: 13px; border-radius: 10px; font-size: 14px; font-family: var(--font-mono); cursor: pointer; border: none; }
+.sheet-btn.primary { background: var(--accent); color: #fff; }
+.sheet-btn.primary:active { background: var(--accent2); }
+.sheet-btn.ghost { background: var(--panel); border: 1px solid var(--border); color: var(--text2); }
+.sheet-btn.ghost:active { border-color: var(--gold); color: var(--gold); }
+
+/* FORM FIELDS in sheets */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--text3); margin-bottom: 6px; letter-spacing: .5px; }
+.field input, .field select, .field textarea {
+  width: 100%; background: var(--panel); border: 1px solid var(--border);
+  color: var(--text); padding: 11px 13px; border-radius: 10px;
+  font-size: 15px; font-family: var(--font-serif); outline: none;
+  transition: border-color .2s; -webkit-appearance: none; appearance: none;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); }
+.field select option { background: var(--panel); }
+
+/* EXPORT SHEET */
+.exp-opt-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid var(--border); }
+.exp-opt-row:last-child { border-bottom: none; }
+.exp-opt-lbl { font-size: 14px; color: var(--text); }
+.exp-opt-sub { font-size: 11px; color: var(--text3); font-family: var(--font-mono); margin-top: 2px; }
+.toggle {
+  width: 46px; height: 26px; background: var(--border); border-radius: 13px;
+  position: relative; cursor: pointer; transition: background .2s; flex-shrink: 0;
+}
+.toggle.on { background: var(--gold); }
+.toggle::after {
+  content: ''; position: absolute; width: 20px; height: 20px;
+  background: white; border-radius: 50%; top: 3px; left: 3px;
+  transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+.toggle.on::after { transform: translateX(20px); }
+
+.exp-section-hdr { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--gold); text-transform: uppercase; margin: 16px 0 6px; }
+.radio-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.radio-row:last-child { border-bottom: none; }
+.radio-dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.radio-dot.sel { border-color: var(--gold); }
+.radio-dot.sel::after { content: ''; width: 10px; height: 10px; background: var(--gold); border-radius: 50%; }
+.radio-lbl { font-size: 14px; color: var(--text); flex: 1; }
+.radio-sub { font-size: 11px; color: var(--text3); font-family: var(--font-mono); }
+
+/* Delete confirm row */
+.danger-row { padding: 16px 20px; margin-top: 16px; border-top: 1px solid var(--border); }
+.danger-btn { width: 100%; padding: 12px; border-radius: 10px; background: transparent; border: 1px solid #8b2e12; color: #c44; font-size: 13px; font-family: var(--font-mono); cursor: pointer; }
+.danger-btn:active { background: rgba(139,46,18,.2); }
+
+/* STATUS STRIP */
+.status-strip {
+  background: var(--ink2); border-top: 1px solid var(--border);
+  padding: 5px 16px calc(var(--safe-bot) + 5px);
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--text3);
+  flex-shrink: 0;
+}
+.s-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); margin-right: 3px; display: inline-block; }
+.s-div { width: 1px; height: 10px; background: var(--border); }
+.s-tts { color: var(--green2); }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ══ LIBRARY SCREEN ══ -->
+<div class="screen active" id="sLibrary">
+  <div class="topbar" style="padding-bottom:12px;">
+    <div class="tb-title">FOLIO</div>
+    <div class="tb-actions">
+      <button class="tb-btn" onclick="openSheet('shInstall')" style="font-size:11px;">📲 Install</button>
+      <button class="tb-btn accent" onclick="openSheet('shAddBook')">+ Book</button>
+    </div>
+  </div>
+  <div class="lib-hero">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-inp" type="search" placeholder="Search your library…" oninput="filterBooks(this.value)">
+    </div>
+  </div>
+  <div class="scroll" id="libScroll">
+    <div class="scroll-pad" id="bookListArea"></div>
+  </div>
+  <button class="fab" onclick="openSheet('shAddBook')" id="libFab">+</button>
+  <div class="status-strip">
+    <span><span class="s-dot"></span>Folio v3</span>
+    <div class="s-div"></div>
+    <span id="sBooksLbl">0 books</span>
+    <div class="s-div"></div>
+    <span id="sTTSLbl" class="s-tts" style="display:none;">🔊 Reading…</span>
+    <span id="sAILbl">AI: Claude Sonnet</span>
+  </div>
+</div>
+
+<!-- ══ BOOK SCREEN ══ -->
+<div class="screen" id="sBook">
+  <div class="topbar">
+    <button class="tb-back" onclick="goBack('sBook','sLibrary')">‹ Library</button>
+    <div class="tb-title sub" id="bookScreenTitle">Book</div>
+    <div class="tb-actions">
+      <button class="tb-btn gold" onclick="openSheet('shExport')">↓</button>
+      <button class="tb-btn" onclick="openSheet('shBookMenu')">•••</button>
+    </div>
+  </div>
+  <div class="book-hero" id="bookHero"></div>
+  <div class="scroll" id="bookScroll">
+    <div class="scroll-pad">
+      <div class="ch-list-hdr">
+        <span class="ch-lbl">Chapters</span>
+        <button class="add-ch-btn" onclick="openSheet('shAddCh')">+ Chapter</button>
+      </div>
+      <div id="chListArea"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CHAPTER SCREEN ══ -->
+<div class="screen" id="sChapter">
+  <div class="topbar">
+    <button class="tb-back" onclick="goBack('sChapter','sBook')">‹ Back</button>
+    <div class="tb-title sub" id="chScreenTitle" style="font-size:13px;">Chapter</div>
+    <div class="tb-actions">
+      <button class="tb-btn" onclick="openSheet('shChMenu')">•••</button>
+    </div>
+  </div>
+  <div class="ch-mode-bar" id="modebar"></div>
+  <div class="scroll" id="chScroll">
+    <div id="chContentWrap"></div>
+  </div>
+</div>
+
+<!-- ══ SHEETS ══ -->
+
+<!-- Add Book -->
+<div class="sheet-ov" id="shAddBook" onclick="sheetOvClick(event,'shAddBook')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Add a Book</div>
+    <div class="sheet-body">
+      <div class="field"><label>Title *</label><input id="fBTitle" placeholder="e.g. The Wandering Inn"></div>
+      <div class="field"><label>Author / Creator</label><input id="fBAuthor" placeholder="e.g. pirateaba"></div>
+      <div class="field"><label>Type</label><select id="fBType"><option>Web Novel</option><option>Light Novel</option><option>Original Fiction</option><option>Fan Fiction</option><option>Webtoon Story</option><option>Other</option></select></div>
+      <div class="field"><label>Genre</label><input id="fBGenre" placeholder="e.g. Isekai, Fantasy, Progression"></div>
+      <div class="field"><label>Source (optional)</label><input id="fBSource" placeholder="e.g. Royal Road, Scribble Hub"></div>
+      <div class="field"><label>Cover Emoji</label><input id="fBEmoji" placeholder="📚" maxlength="2"></div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn ghost" onclick="closeSheet('shAddBook')">Cancel</button>
+      <button class="sheet-btn primary" onclick="addBook()">Add Book</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Chapter -->
+<div class="sheet-ov" id="shAddCh" onclick="sheetOvClick(event,'shAddCh')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Add Chapter</div>
+    <div class="sheet-body">
+      <div class="field"><label>Chapter Number / Label *</label><input id="fCNum" placeholder="e.g. Chapter 42"></div>
+      <div class="field"><label>Chapter Title (optional)</label><input id="fCTitle" placeholder="e.g. The Storm Arrives"></div>
+      <div class="field"><label>Paste Text (you can add later)</label><textarea id="fCText" rows="5" placeholder="Paste chapter content here…"></textarea></div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn ghost" onclick="closeSheet('shAddCh')">Cancel</button>
+      <button class="sheet-btn primary" onclick="addChapter()">Add Chapter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Book Menu -->
+<div class="sheet-ov" id="shBookMenu" onclick="sheetOvClick(event,'shBookMenu')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Book Options</div>
+    <div class="sheet-body">
+      <div class="danger-row" style="margin-top:0;padding:0;">
+        <button class="danger-btn" onclick="deleteBook()">Delete This Book</button>
+      </div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn ghost" onclick="closeSheet('shBookMenu')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chapter Menu -->
+<div class="sheet-ov" id="shChMenu" onclick="sheetOvClick(event,'shChMenu')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Chapter Options</div>
+    <div class="sheet-body">
+      <div class="danger-row" style="margin-top:0;padding:0;">
+        <button class="danger-btn" onclick="deleteChapter()">Delete This Chapter</button>
+      </div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn ghost" onclick="closeSheet('shChMenu')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export -->
+<div class="sheet-ov" id="shExport" onclick="sheetOvClick(event,'shExport')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Export Book</div>
+    <div class="sheet-body">
+      <div class="exp-section-hdr">Include</div>
+      <div class="exp-opt-row">
+        <div><div class="exp-opt-lbl">AI Summaries</div><div class="exp-opt-sub" id="exSumSub"></div></div>
+        <div class="toggle on" id="togSummaries" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="exp-opt-row">
+        <div><div class="exp-opt-lbl">Chapter Notes</div><div class="exp-opt-sub" id="exNoteSub"></div></div>
+        <div class="toggle on" id="togNotes" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="exp-opt-row">
+        <div><div class="exp-opt-lbl">Full Chapter Text</div><div class="exp-opt-sub">may be long</div></div>
+        <div class="toggle" id="togText" onclick="this.classList.toggle('on')"></div>
+      </div>
+
+      <div class="exp-section-hdr" style="margin-top:20px;">Format</div>
+      <div id="fmtHTML" class="radio-row" onclick="selectFmt('html')">
+        <div class="radio-dot sel" id="rdHTML"></div>
+        <div><div class="radio-lbl">HTML Document</div><div class="radio-sub">Richly formatted, open in any browser</div></div>
+      </div>
+      <div id="fmtMD" class="radio-row" onclick="selectFmt('md')">
+        <div class="radio-dot" id="rdMD"></div>
+        <div><div class="radio-lbl">Markdown</div><div class="radio-sub">Plain text, portable</div></div>
+      </div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn ghost" onclick="closeSheet('shExport')">Cancel</button>
+      <button class="sheet-btn primary" onclick="runExport()">Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- Install Sheet -->
+<div class="sheet-ov" id="shInstall" onclick="sheetOvClick(event,'shInstall')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">📲 Install Folio</div>
+    <div class="sheet-body">
+
+      <div id="installBtnWrap" style="display:none;margin-bottom:16px;">
+        <button onclick="triggerInstall()" style="width:100%;padding:14px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:15px;font-family:var(--font-mono);cursor:pointer;">
+          ⬇ Add Folio to Home Screen
+        </button>
+        <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:8px;">Your browser supports one-tap install</div>
+      </div>
+
+      <div style="background:var(--panel);border:1px solid var(--gold);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Once installed</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65;">Folio lives on your home screen like a native app. Works offline, remembers your books and exactly where you left off. No app store required.</div>
+      </div>
+
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">iPhone — Safari</div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:14px;">
+        <div style="font-size:13px;color:var(--text2);line-height:1.8;">
+          1. Open this URL in <strong style="color:var(--text);">Safari</strong> (not Chrome)<br>
+          2. Tap the <strong style="color:var(--text);">Share</strong> button <strong style="color:var(--gold);">↑</strong> at the bottom<br>
+          3. Scroll down and tap <strong style="color:var(--text);">Add to Home Screen</strong><br>
+          4. Tap <strong style="color:var(--text);">Add</strong> — done ✓
+        </div>
+      </div>
+
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">Android — Chrome</div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:14px;">
+        <div style="font-size:13px;color:var(--text2);line-height:1.8;">
+          1. Tap the <strong style="color:var(--text);">⋮ menu</strong> in Chrome<br>
+          2. Tap <strong style="color:var(--text);">Add to Home Screen</strong><br>
+          3. Tap <strong style="color:var(--text);">Add</strong> — done ✓
+        </div>
+      </div>
+
+      <div style="background:var(--ink2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:12px;color:var(--text2);line-height:1.6;">💡 <strong style="color:var(--text);">Your URL is:</strong> once you deploy to GitHub Pages it will look like <code style="color:var(--gold);">yourname.github.io/folio-app</code> — bookmark it in Safari first, then Add to Home Screen.</div>
+      </div>
+
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn ghost" onclick="closeSheet('shInstall')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let library = [];
+try { library = JSON.parse(localStorage.getItem('folio_lib') || '[]'); } catch(e) { library = []; }
+let activeBid = null, activeCid = null, curMode = 'read', sumLevel = 'high', sumCache = {};
+let expFmt = 'html';
+
+// TTS
+let ttsParagraphs = [], ttsIdx = 0, ttsPlaying = false, ttsRate = 1.0, ttsPitch = 1.0, ttsVoice = null, ttsVoices = [];
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function save() { try { localStorage.setItem('folio_lib', JSON.stringify(library)); } catch(e) {} updateStatus(); }
+
+function saveSession() {
+  try {
+    localStorage.setItem('folio_session', JSON.stringify({
+      bid: activeBid, cid: activeCid, mode: curMode, sumLevel,
+      screen: document.querySelector('.screen.active')?.id || 'sLibrary',
+      scrollPos: activeCid ? document.getElementById('chScroll')?.scrollTop : null
+    }));
+  } catch(e) {}
+}
+
+function restoreSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem('folio_session') || 'null');
+    if (!s || !s.bid) return;
+    const bk = library.find(b => b.id === s.bid);
+    if (!bk) return;
+    // Restore state vars first
+    activeBid = s.bid;
+    sumLevel = s.sumLevel || 'high';
+    if (s.cid && s.screen === 'sChapter') {
+      const ch = bk.chapters.find(c => c.id === s.cid);
+      if (ch) {
+        activeCid = s.cid;
+        curMode = s.mode || 'read';
+        document.getElementById('bookScreenTitle').textContent = bk.title;
+        renderBook(bk);
+        document.getElementById('chScreenTitle').textContent = ch.num + (ch.title ? ' — ' + ch.title : '');
+        renderModebar(bk.id, ch.id);
+        renderMode(bk, ch);
+        goTo('sChapter');
+        // Restore scroll after a tick
+        if (s.scrollPos) setTimeout(() => { const el = document.getElementById('chScroll'); if (el) el.scrollTop = s.scrollPos; }, 120);
+        return;
+      }
+    }
+    // Fall back to book screen
+    document.getElementById('bookScreenTitle').textContent = bk.title;
+    renderBook(bk);
+    goTo('sBook');
+  } catch(e) {}
+}
+
+// ── TTS ──
+function loadVoices() {
+  const all = speechSynthesis.getVoices();
+  ttsVoices = all.filter(v => v.lang.startsWith('en'));
+  if (!ttsVoices.length) ttsVoices = all;
+  const sel = document.getElementById('ttsVoiceSel');
+  if (sel) fillVoiceSel(sel);
+}
+if ('onvoiceschanged' in speechSynthesis) speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+
+function fillVoiceSel(sel) {
+  const vs = ttsVoices.length ? ttsVoices : speechSynthesis.getVoices();
+  sel.innerHTML = vs.map((v, i) => `<option value="${i}">${v.name}</option>`).join('');
+}
+function setVoice(i) { ttsVoice = ttsVoices[+i] || null; }
+
+function stopTTS() {
+  speechSynthesis.cancel(); ttsPlaying = false; ttsIdx = 0;
+  updateTTSUI(); clearHL();
+  const _tts=document.getElementById('sTTSLbl');if(_tts)_tts.style.display='none';
+}
+function clearHL() { document.querySelectorAll('.para.hl').forEach(e => e.classList.remove('hl')); }
+function updateTTSUI() {
+  const pb = document.getElementById('ttsPlayBtn');
+  if (pb) { pb.textContent = ttsPlaying ? '⏸' : '▶'; pb.classList.toggle('on', ttsPlaying); }
+  const fill = document.getElementById('ttsPFill');
+  if (fill && ttsParagraphs.length) fill.style.width = (ttsIdx / ttsParagraphs.length * 100) + '%';
+  const st = document.getElementById('ttsStatTxt');
+  if (st) st.textContent = ttsPlaying ? `¶ ${ttsIdx} of ${ttsParagraphs.length}` : (ttsIdx >= ttsParagraphs.length && ttsIdx > 0 ? 'Done.' : 'Tap ▶ to listen.');
+}
+function speakFrom(idx) {
+  speechSynthesis.cancel();
+  if (!ttsParagraphs.length) return;
+  ttsIdx = Math.max(0, idx); ttsPlaying = true;
+  const _ttsi=document.getElementById('sTTSLbl');if(_ttsi)_ttsi.style.display='inline';
+  updateTTSUI(); speakNext();
+}
+function speakNext() {
+  if (ttsIdx >= ttsParagraphs.length) { ttsPlaying = false; updateTTSUI(); const _tts=document.getElementById('sTTSLbl');if(_tts)_tts.style.display='none'; clearHL(); return; }
+  clearHL();
+  const el = document.getElementById('tp-' + ttsIdx);
+  if (el) { el.classList.add('hl'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  const u = new SpeechSynthesisUtterance(ttsParagraphs[ttsIdx]);
+  u.rate = ttsRate; u.pitch = ttsPitch; if (ttsVoice) u.voice = ttsVoice;
+  u.onend = () => { ttsIdx++; updateTTSUI(); if (ttsPlaying) speakNext(); };
+  u.onerror = () => { ttsIdx++; if (ttsPlaying) speakNext(); };
+  speechSynthesis.speak(u);
+}
+function toggleTTS() {
+  if (ttsPlaying) { speechSynthesis.pause(); ttsPlaying = false; updateTTSUI(); }
+  else if (speechSynthesis.paused) { speechSynthesis.resume(); ttsPlaying = true; updateTTSUI(); const _ttsi=document.getElementById('sTTSLbl');if(_ttsi)_ttsi.style.display='inline'; }
+  else speakFrom(0);
+}
+function speakText(html) {
+  stopTTS();
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = ttsRate; u.pitch = ttsPitch; if (ttsVoice) u.voice = ttsVoice;
+  ttsPlaying = true;
+  const _ttsi=document.getElementById('sTTSLbl');if(_ttsi)_ttsi.style.display='inline';
+  const btn = document.getElementById('sumAloudBtn');
+  if (btn) btn.classList.add('on');
+  u.onend = () => {
+    ttsPlaying = false; const _tts=document.getElementById('sTTSLbl');if(_tts)_tts.style.display='none';
+    const b = document.getElementById('sumAloudBtn'); if (b) b.classList.remove('on');
+  };
+  speechSynthesis.speak(u);
+}
+function toggleSumAloud() {
+  if (ttsPlaying) { stopTTS(); return; }
+  const c = document.getElementById('aiContentEl'); if (c) speakText(c.innerHTML);
+}
+
+// ── NAVIGATION ──
+function goTo(screenId) {
+  const screens = ['sLibrary','sBook','sChapter'];
+  const idx = screens.indexOf(screenId);
+  screens.forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('active','behind');
+    if (i < idx) el.classList.add('behind');
+    else if (i === idx) el.classList.add('active');
+  });
+  saveSession();
+}
+function goBack(fromId, toId) {
+  stopTTS();
+  document.getElementById(fromId).classList.remove('active');
+  document.getElementById(toId).classList.remove('behind');
+  document.getElementById(toId).classList.add('active');
+  if (toId === 'sLibrary') { activeBid = null; activeCid = null; }
+  if (toId === 'sBook') { activeCid = null; }
+  saveSession();
+}
+
+// ── SHEETS ──
+function openSheet(id) {
+  // populate export info when opening
+  if (id === 'shExport' && activeBid) {
+    const bk = library.find(b => b.id === activeBid);
+    const sc = bk.chapters.filter(c => sumCache[`${c.id}_high`] || sumCache[`${c.id}_low`]).length;
+    const nc = bk.chapters.filter(c => c.notes).length;
+    document.getElementById('exSumSub').textContent = sc + ' generated';
+    document.getElementById('exNoteSub').textContent = nc + ' with notes';
+  }
+  document.getElementById(id).classList.add('open');
+}
+function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+function sheetOvClick(e, id) { if (e.target === e.currentTarget) closeSheet(id); }
+
+// ── BOOKS ──
+function addBook() {
+  const t = document.getElementById('fBTitle').value.trim(); if (!t) return;
+  const bk = { id: uid(), title: t, author: document.getElementById('fBAuthor').value.trim(), type: document.getElementById('fBType').value, genre: document.getElementById('fBGenre').value.trim(), source: document.getElementById('fBSource').value.trim(), emoji: document.getElementById('fBEmoji').value.trim() || '📚', chapters: [], createdAt: Date.now() };
+  library.unshift(bk); save(); closeSheet('shAddBook');
+  ['fBTitle','fBAuthor','fBGenre','fBSource','fBEmoji'].forEach(id => document.getElementById(id).value = '');
+  renderLibrary(); openBook(bk.id);
+}
+function deleteBook() {
+  if (!confirm('Delete this book and all its chapters?')) return;
+  library = library.filter(b => b.id !== activeBid); save(); stopTTS();
+  closeSheet('shBookMenu'); renderLibrary(); goBack('sBook', 'sLibrary');
+  activeBid = null;
+}
+
+// ── CHAPTERS ──
+function addChapter() {
+  const n = document.getElementById('fCNum').value.trim(); if (!n) return;
+  const bk = library.find(b => b.id === activeBid);
+  const ch = { id: uid(), num: n, title: document.getElementById('fCTitle').value.trim(), text: document.getElementById('fCText').value.trim(), notes: '', read: false };
+  bk.chapters.push(ch); save(); closeSheet('shAddCh');
+  ['fCNum','fCTitle','fCText'].forEach(id => document.getElementById(id).value = '');
+  renderBook(bk); openChapter(bk, ch.id);
+}
+function deleteChapter() {
+  if (!confirm('Delete this chapter?')) return;
+  const bk = library.find(b => b.id === activeBid);
+  bk.chapters = bk.chapters.filter(c => c.id !== activeCid);
+  activeCid = null; save(); stopTTS();
+  closeSheet('shChMenu'); renderBook(bk); goBack('sChapter', 'sBook');
+}
+
+// ── RENDER LIBRARY ──
+function renderLibrary(filter = '') {
+  const el = document.getElementById('bookListArea');
+  const list = library.filter(b => b.title.toLowerCase().includes(filter.toLowerCase()));
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><span class="empty-icon">📖</span><h3>Your library is empty</h3><p>Tap <strong>+ Book</strong> to add your first web novel, light novel, or original story.</p></div>`;
+    return;
+  }
+  const html = `<div class="section-hdr"><span class="section-lbl">${list.length} Book${list.length !== 1 ? 's' : ''}</span></div>` +
+    list.map(b => {
+      const tot = b.chapters.length, rd = b.chapters.filter(c => c.read).length;
+      const pct = tot ? Math.round(rd / tot * 100) : 0;
+      return `<div class="book-card" onclick="openBook('${b.id}')">
+        <div class="book-card-cover">${b.emoji}</div>
+        <div class="book-card-info">
+          <div class="bci-title">${b.title}</div>
+          <div class="bci-author">${b.author || 'Unknown author'}${b.source ? ' · ' + b.source : ''}</div>
+          <div class="bci-tags">${b.type ? `<span class="bci-tag">${b.type}</span>` : ''}${b.genre ? b.genre.split(',').slice(0,2).map(g=>`<span class="bci-tag">${g.trim()}</span>`).join('') : ''}</div>
+          <div class="bci-prog-row">
+            <div class="bci-prog-track"><div class="bci-prog-fill" style="width:${pct}%"></div></div>
+            <span class="bci-prog-lbl">${rd}/${tot} · ${pct}%</span>
+          </div>
+        </div>
+        <div class="bci-arrow">›</div>
+      </div>`;
+    }).join('');
+  el.innerHTML = html;
+}
+function filterBooks(v) { renderLibrary(v); }
+
+// ── OPEN BOOK ──
+function openBook(id) {
+  stopTTS(); activeBid = id; activeCid = null; sumCache = {};
+  const bk = library.find(b => b.id === id);
+  document.getElementById('bookScreenTitle').textContent = bk.title;
+  renderBook(bk); goTo('sBook');
+}
+function renderBook(bk) {
+  const tot = bk.chapters.length, rd = bk.chapters.filter(c => c.read).length;
+  const pct = tot ? Math.round(rd / tot * 100) : 0;
+  document.getElementById('bookHero').innerHTML = `
+    <div class="bh-cover">${bk.emoji}</div>
+    <div class="bh-info">
+      <div class="bh-title">${bk.title}</div>
+      <div class="bh-author">${bk.author || 'Unknown'}${bk.source ? ' · ' + bk.source : ''}</div>
+      <div class="bh-prog-row">
+        <div class="bh-prog-track"><div class="bh-prog-fill" style="width:${pct}%"></div></div>
+        <span class="bh-prog-lbl">${rd} / ${tot} read — ${pct}%</span>
+      </div>
+    </div>`;
+  const el = document.getElementById('chListArea');
+  if (!bk.chapters.length) {
+    el.innerHTML = `<div style="text-align:center;padding:32px 20px;color:var(--text3);font-style:italic;font-size:14px;">No chapters yet.<br>Tap + Chapter to add one.</div>`;
+    return;
+  }
+  el.innerHTML = bk.chapters.map(c => `
+    <div class="ch-card ${c.id === activeCid ? 'reading' : ''}" onclick="openChapter(library.find(b=>b.id==='${bk.id}'),'${c.id}')">
+      <div class="ch-dots">
+        <div class="dot ${c.read ? 'gold' : ''}"></div>
+        <div class="dot ${c.notes ? 'green' : ''}"></div>
+      </div>
+      <div class="ch-card-info">
+        <div class="ch-card-num">${c.num}</div>
+        <div class="ch-card-title">${c.title || '(Untitled)'}</div>
+      </div>
+      <div class="ch-card-arrow">›</div>
+    </div>`).join('');
+}
+
+// ── OPEN CHAPTER ──
+function openChapter(bk, cid) {
+  stopTTS(); activeCid = cid;
+  const ch = bk.chapters.find(c => c.id === cid);
+  ch.read = true; save(); renderBook(bk); renderLibrary();
+  document.getElementById('chScreenTitle').textContent = ch.num + (ch.title ? ' — ' + ch.title : '');
+  if (!ch.text) curMode = 'paste';
+  else curMode = 'read';
+  renderModebar(bk.id, ch.id);
+  renderMode(bk, ch);
+  goTo('sChapter');
+  document.getElementById('chScroll').scrollTop = 0;
+}
+
+function renderModebar(bid, cid) {
+  const modes = [
+    {id:'read', label:'📖 Read'},
+    {id:'summary', label:'✦ Summary'},
+    {id:'notes', label:'📝 Notes'},
+    {id:'paste', label:'✏ Edit Text'},
+  ];
+  document.getElementById('modebar').innerHTML = modes.map(m =>
+    `<button class="mode-pill ${curMode === m.id ? 'active' : ''}" onclick="switchMode('${m.id}','${bid}','${cid}')">${m.label}</button>`
+  ).join('');
+}
+
+function switchMode(mode, bid, cid) {
+  curMode = mode; stopTTS();
+  const bk = library.find(b => b.id === bid), ch = bk.chapters.find(c => c.id === cid);
+  document.querySelectorAll('.mode-pill').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  renderMode(bk, ch);
+  document.getElementById('chScroll').scrollTop = 0;
+  saveSession();
+}
+
+function renderMode(bk, ch) {
+  const wrap = document.getElementById('chContentWrap');
+  if (curMode === 'read') renderRead(wrap, ch);
+  else if (curMode === 'summary') renderSummary(wrap, bk, ch);
+  else if (curMode === 'notes') renderNotes(wrap, bk, ch);
+  else renderPaste(wrap, bk, ch);
+}
+
+// ── READ MODE ──
+function renderRead(wrap, ch) {
+  if (!ch.text) {
+    wrap.innerHTML = `<div class="read-wrap"><p style="color:var(--text3);font-style:italic;font-size:15px;padding-top:20px;">No text yet — tap Edit Text to paste content.</p></div>`;
+    return;
+  }
+  const paras = ch.text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+  ttsParagraphs = paras; ttsIdx = 0; ttsPlaying = false;
+  const parasHTML = paras.map((p, i) => `<div class="para" id="tp-${i}">${p.replace(/\n/g,'<br>')}</div>`).join('');
+  wrap.innerHTML = `<div class="read-wrap">
+    <div class="tts-bar">
+      <div class="tts-top-row">
+        <div class="tts-lbl">🔊 Read Aloud</div>
+        <div class="tts-ctrl">
+          <button class="tts-play" id="ttsPlayBtn" onclick="toggleTTS()">▶</button>
+          <button class="tts-stop-btn" onclick="stopTTS()">■ Stop</button>
+        </div>
+      </div>
+      <div class="tts-sliders">
+        <div class="tts-sl-row">
+          <div class="tts-sl-lbl">Speed <span id="rateVal">${ttsRate.toFixed(1)}×</span></div>
+          <input type="range" min="0.5" max="2" step="0.1" value="${ttsRate}" oninput="ttsRate=+this.value;document.getElementById('rateVal').textContent=ttsRate.toFixed(1)+'×'">
+        </div>
+        <div class="tts-sl-row">
+          <div class="tts-sl-lbl">Pitch <span id="pitchVal">${ttsPitch.toFixed(1)}</span></div>
+          <input type="range" min="0.5" max="2" step="0.1" value="${ttsPitch}" oninput="ttsPitch=+this.value;document.getElementById('pitchVal').textContent=ttsPitch.toFixed(1)">
+        </div>
+      </div>
+      <select class="tts-voice-sel" id="ttsVoiceSel" onchange="setVoice(this.value)"></select>
+      <div class="tts-prog-wrap">
+        <div class="tts-prog"><div class="tts-prog-fill" id="ttsPFill"></div></div>
+        <div class="tts-stat" id="ttsStatTxt">Tap ▶ to listen.</div>
+      </div>
+    </div>
+    <div class="read-display-row">
+      <div class="rdl">Font<span id="fontSzLbl">17</span></div>
+      <input type="range" min="14" max="22" value="17" style="flex:1" oninput="document.querySelectorAll('.para').forEach(p=>p.style.fontSize=this.value+'px');document.getElementById('fontSzLbl').textContent=this.value">
+      <div class="rdl">Line<span id="lineLbl">1.9</span></div>
+      <input type="range" min="140" max="230" value="190" style="flex:1" oninput="document.querySelectorAll('.para').forEach(p=>p.style.lineHeight=(this.value/100));document.getElementById('lineLbl').textContent=(this.value/100).toFixed(1)">
+    </div>
+    ${parasHTML}
+  </div>`;
+  const sel = document.getElementById('ttsVoiceSel'); fillVoiceSel(sel);
+}
+
+// ── SUMMARY MODE ──
+function renderSummary(wrap, bk, ch) {
+  const cached = sumCache[`${ch.id}_${sumLevel}`];
+  wrap.innerHTML = `<div class="sum-wrap">
+    <div class="sum-type-row">
+      <button class="sum-type-btn ${sumLevel==='high'?'active':''}" onclick="setLevel('high','${bk.id}','${ch.id}')">⚡ Quick</button>
+      <button class="sum-type-btn ${sumLevel==='low'?'active':''}" onclick="setLevel('low','${bk.id}','${ch.id}')">🔬 Deep</button>
+    </div>
+    <div class="ai-card" id="aiCard">
+      <div class="ai-card-lbl"><div class="ai-pulse"></div>${sumLevel==='high'?'Quick Overview':'Deep Analysis'}</div>
+      <div class="ai-content" id="aiContentEl">${cached || '<div class="ai-ph">Tap Generate to analyze this chapter.</div>'}</div>
+    </div>
+    <div class="sum-actions">
+      ${ch.text ? `<button class="sum-gen-btn" id="genBtn" onclick="genSummary('${bk.id}','${ch.id}')">✦ Generate ${sumLevel==='high'?'Overview':'Analysis'}</button>` : '<p style="color:var(--text3);font-size:13px;font-style:italic;">Add chapter text first.</p>'}
+      ${cached ? `<button class="sum-aloud-btn" id="sumAloudBtn" onclick="toggleSumAloud()">🔊 Aloud</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function setLevel(l, bid, cid) {
+  sumLevel = l; stopTTS();
+  const bk = library.find(b => b.id === bid), ch = bk.chapters.find(c => c.id === cid);
+  renderSummary(document.getElementById('chContentWrap'), bk, ch);
+}
+
+async function genSummary(bid, cid) {
+  const bk = library.find(b => b.id === bid), ch = bk.chapters.find(c => c.id === cid);
+  if (!ch.text) return;
+  const btn = document.getElementById('genBtn'), out = document.getElementById('aiContentEl'), card = document.getElementById('aiCard');
+  if (btn) btn.disabled = true; if (card) card.classList.add('loading');
+  if (out) out.innerHTML = '<div class="ai-ph">Analyzing…</div>';
+  const prompt = sumLevel === 'high'
+    ? `You are a reading assistant. HIGH-LEVEL overview of this chapter — concise and scannable.
+Respond ONLY in HTML with <h4>,<ul>,<li>,<p> tags. No markdown, no backticks, no preamble.
+Sections: What Happens (3–5 bullets) | Key Characters | Chapter Mood (1–2 sentences) | Key Takeaway (1 sentence)
+Book: "${bk.title}" by ${bk.author||'Unknown'} | Chapter: ${ch.num}${ch.title?' — '+ch.title:''}
+Text: ${ch.text.slice(0,9000)}`
+    : `You are a literary analyst. DEEP ANALYSIS of this chapter.
+Respond ONLY in HTML with <h4>,<ul>,<li>,<p> tags. No markdown, no backticks, no preamble.
+Sections: Plot Mechanics | Character Development | Themes & Motifs | Foreshadowing & Setup | Writing Craft Notes | Open Questions
+Book: "${bk.title}" by ${bk.author||'Unknown'} | Chapter: ${ch.num}${ch.title?' — '+ch.title:''}
+Text: ${ch.text.slice(0,9000)}`;
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] }) });
+    const d = await r.json();
+    const txt = d.content?.map(b => b.text||'').join('') || 'No response.';
+    sumCache[`${cid}_${sumLevel}`] = txt;
+    if (out) out.innerHTML = txt;
+    const sa = document.querySelector('.sum-actions');
+    if (sa && !document.getElementById('sumAloudBtn')) {
+      const ab = document.createElement('button'); ab.className = 'sum-aloud-btn'; ab.id = 'sumAloudBtn'; ab.textContent = '🔊 Aloud'; ab.onclick = toggleSumAloud; sa.appendChild(ab);
+    }
+  } catch(err) { if (out) out.innerHTML = `<p style="color:#c44;">Error: ${err.message}</p>`; }
+  finally { if (btn) btn.disabled = false; if (card) card.classList.remove('loading'); }
+}
+
+// ── NOTES MODE ──
+function renderNotes(wrap, bk, ch) {
+  wrap.innerHTML = `<div class="notes-wrap">
+    <div class="notes-title">${ch.num}${ch.title?' · '+ch.title:''}</div>
+    <textarea class="notes-ta" id="notesTa" placeholder="Your thoughts, reactions, questions, things to remember…">${ch.notes||''}</textarea>
+    <div class="notes-save-row">
+      <button class="notes-save-btn" onclick="saveNotes('${bk.id}','${ch.id}')">Save Notes</button>
+      <span class="saved-flash" id="savedFlash">✓ Saved</span>
+      ${ch.notes ? `<button class="notes-clear-btn" onclick="clearNotes('${bk.id}','${ch.id}')">Clear</button>` : ''}
+    </div>
+    <div class="notes-hint">Notes are saved per chapter and included in exports.</div>
+  </div>`;
+}
+function saveNotes(bid, cid) {
+  const bk = library.find(b => b.id === bid), ch = bk.chapters.find(c => c.id === cid);
+  ch.notes = document.getElementById('notesTa').value; save(); renderBook(bk);
+  const f = document.getElementById('savedFlash'); if (f) { f.classList.add('show'); setTimeout(() => f.classList.remove('show'), 2000); }
+}
+function clearNotes(bid, cid) {
+  if (!confirm('Clear all notes for this chapter?')) return;
+  const bk = library.find(b => b.id === bid), ch = bk.chapters.find(c => c.id === cid);
+  ch.notes = ''; save(); renderNotes(document.getElementById('chContentWrap'), bk, ch); renderBook(bk);
+}
+
+// ── PASTE MODE ──
+function renderPaste(wrap, bk, ch) {
+  wrap.innerHTML = `<div class="paste-wrap">
+    <div class="paste-hint">Paste the full chapter text below, then save.</div>
+    <textarea class="paste-ta" id="pasteTa" placeholder="Paste chapter content here…">${ch.text||''}</textarea>
+    <button class="paste-save-btn" onclick="saveTxt('${bk.id}','${ch.id}')">Save & Switch to Read</button>
+  </div>`;
+}
+function saveTxt(bid, cid) {
+  const bk = library.find(b => b.id === bid), ch = bk.chapters.find(c => c.id === cid);
+  ch.text = document.getElementById('pasteTa').value || '';
+  delete sumCache[`${cid}_high`]; delete sumCache[`${cid}_low`];
+  save(); curMode = 'read'; renderModebar(bid, cid); renderMode(bk, ch);
+  document.getElementById('chScroll').scrollTop = 0;
+}
+
+// ── EXPORT ──
+function selectFmt(f) {
+  expFmt = f;
+  document.getElementById('rdHTML').className = 'radio-dot' + (f === 'html' ? ' sel' : '');
+  document.getElementById('rdMD').className = 'radio-dot' + (f === 'md' ? ' sel' : '');
+}
+function runExport() {
+  const bk = library.find(b => b.id === activeBid); if (!bk) return;
+  const iS = document.getElementById('togSummaries').classList.contains('on');
+  const iN = document.getElementById('togNotes').classList.contains('on');
+  const iT = document.getElementById('togText').classList.contains('on');
+  closeSheet('shExport');
+  if (expFmt === 'html') exportHTML(bk, iS, iN, iT); else exportMD(bk, iS, iN, iT);
+}
+function exportHTML(bk, iS, iN, iT) {
+  const rd = bk.chapters.filter(c => c.read).length; let body = '';
+  bk.chapters.forEach(c => {
+    body += `<div class="ch"><h2>${c.num}${c.title?' — '+c.title:''}</h2>`;
+    if (iS) { const hi = sumCache[`${c.id}_high`], lo = sumCache[`${c.id}_low`]; if(hi) body+=`<div class="sum"><div class="sl">Quick Overview</div>${hi}</div>`; if(lo) body+=`<div class="sum"><div class="sl">Deep Analysis</div>${lo}</div>`; }
+    if (iN && c.notes) body += `<div class="nt"><div class="nl">Your Notes</div><p>${c.notes.replace(/\n/g,'<br>')}</p></div>`;
+    if (iT && c.text) body += `<div class="ft"><div class="fl">Full Text</div>${c.text.split(/\n\n+/).map(p=>`<p>${p}</p>`).join('')}</div>`;
+    body += '</div>';
+  });
+  const pct = bk.chapters.length ? Math.round(rd/bk.chapters.length*100) : 0;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${bk.title} — Folio</title><style>body{font-family:Georgia,serif;max-width:860px;margin:40px auto;padding:0 32px;background:#faf7f2;color:#2a1f14;line-height:1.8;}h1{font-size:2em;border-bottom:3px solid #c8973a;padding-bottom:10px;}.meta{color:#6b5744;font-style:italic;margin-bottom:8px;font-size:14px;}.pb{height:6px;background:#e0d4c0;border-radius:3px;margin:14px 0 30px;overflow:hidden;}.pbf{height:100%;background:#c8973a;border-radius:3px;}.ch{border-top:1px solid #d9c9b0;padding:28px 0;}h2{font-size:1.35em;color:#5a2a0a;margin-bottom:14px;}.sum{background:#fff8ee;border-left:4px solid #c8973a;padding:14px 18px;margin:10px 0;border-radius:0 6px 6px 0;}.sl{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#c8973a;margin-bottom:7px;font-family:monospace;}.nt{background:#f0f8f2;border-left:4px solid #4a8c5c;padding:14px 18px;margin:10px 0;border-radius:0 6px 6px 0;}.nl{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#4a8c5c;margin-bottom:7px;font-family:monospace;}.ft{margin-top:14px;padding-top:14px;border-top:1px dashed #d9c9b0;}.fl{font-size:11px;text-transform:uppercase;color:#999;margin-bottom:10px;font-family:monospace;}h4{color:#8b2e12;margin:12px 0 6px;}ul{padding-left:20px;}li{margin-bottom:4px;}</style></head><body><h1>${bk.emoji} ${bk.title}</h1><div class="meta">${bk.author||'Unknown'}${bk.source?' · '+bk.source:''} · ${bk.type||''}</div><div class="meta">Progress: ${rd}/${bk.chapters.length} chapters · Exported ${new Date().toLocaleDateString()}</div><div class="pb"><div class="pbf" style="width:${pct}%"></div></div>${body}</body></html>`;
+  dl(bk.title.replace(/\s+/g,'_')+'_folio.html', html, 'text/html');
+}
+function exportMD(bk, iS, iN, iT) {
+  const rd = bk.chapters.filter(c=>c.read).length;
+  let md = `# ${bk.emoji} ${bk.title}\n\n**Author:** ${bk.author||'Unknown'} · **Progress:** ${rd}/${bk.chapters.length} · Exported ${new Date().toLocaleDateString()}\n\n---\n\n`;
+  bk.chapters.forEach(c => {
+    md += `## ${c.num}${c.title?' — '+c.title:''}\n\n`;
+    if(iS){const hi=sumCache[`${c.id}_high`],lo=sumCache[`${c.id}_low`];if(hi)md+=`### Quick\n${hi.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()}\n\n`;if(lo)md+=`### Deep\n${lo.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()}\n\n`;}
+    if(iN&&c.notes)md+=`### Notes\n${c.notes}\n\n`;
+    if(iT&&c.text)md+=`### Text\n${c.text}\n\n`;
+    md+='---\n\n';
+  });
+  dl(bk.title.replace(/\s+/g,'_')+'_folio.md', md, 'text/markdown');
+}
+function dl(name, content, type) { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); }
+
+// ── STATUS ──
+function updateStatus() {
+  document.getElementById('sBooksLbl').textContent = library.length + ' book' + (library.length!==1?'s':'');
+}
+
+// ── COPY CODE ──
+async function copyAppCode() {
+  const btn = document.getElementById('copyCodeBtn');
+  try {
+    const html = document.documentElement.outerHTML;
+    await navigator.clipboard.writeText(html);
+    btn.textContent = '✓ Copied!';
+    btn.style.background = 'var(--green)';
+    setTimeout(() => { btn.textContent = '📋 Copy App Code'; btn.style.background = ''; }, 3000);
+  } catch(e) {
+    // fallback: select a textarea
+    const ta = document.createElement('textarea');
+    ta.value = document.documentElement.outerHTML;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, 99999999);
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✓ Copied!';
+    btn.style.background = 'var(--green)';
+    setTimeout(() => { btn.textContent = '📋 Copy App Code'; btn.style.background = ''; }, 3000);
+  }
+}
+
+
+// ── PWA REGISTRATION ──
+let deferredInstallPrompt = null;
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('Folio SW registered:', reg.scope))
+      .catch(err => console.log('SW registration failed:', err));
+  });
+}
+
+// Capture the install prompt for Android Chrome one-tap install
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Show our one-tap install button
+  const wrap = document.getElementById('installBtnWrap');
+  if (wrap) wrap.style.display = 'block';
+});
+
+function triggerInstall() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(result => {
+    if (result.outcome === 'accepted') closeSheet('shInstall');
+    deferredInstallPrompt = null;
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  console.log('Folio installed successfully');
+});
+
+// ── INIT ──
+window.onerror = function(msg, src, line, col, err) {
+  console.warn('Folio error:', msg, 'line:', line);
+  return false;
+};
+
+try {
+  renderLibrary();
+  updateStatus();
+  if (library.length > 0) {
+    restoreSession();
+  }
+} catch(e) {
+  console.warn('Folio init error:', e);
+  // Fallback: just render the library
+  try { renderLibrary(); updateStatus(); } catch(e2) {}
+}
+
+// Save scroll position periodically while reading
+setInterval(function() { try { if (activeCid) saveSession(); } catch(e) {} }, 5000);
+</script>
+</body>
+</html>
