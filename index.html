@@ -53,6 +53,17 @@ html, body {
   overscroll-behavior: none;
 }
 
+
+/* ── FONT OPTIONS ── */
+.font-opt-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.font-opt-row:last-child { border-bottom: none; }
+.font-opt-preview { font-size: 20px; color: var(--text); flex: 1; }
+.font-opt-name { font-family: var(--font-mono); font-size: 11px; color: var(--text3); }
+.font-opt-check { color: var(--gold); font-size: 18px; width: 24px; text-align: right; }
+
 /* ── SCREEN STACK ── */
 .screen {
   position: absolute; inset: 0;
@@ -471,6 +482,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); cursor: pointer; hei
   <div class="topbar" style="padding-bottom:12px;">
     <div class="tb-title">FOLIO</div>
     <div class="tb-actions">
+      <button class="tb-btn" onclick="openSheet('shApiKey')" style="font-size:11px;">🔑 AI</button>
       <button class="tb-btn" onclick="openSheet('shInstall')" style="font-size:11px;">📲 Install</button>
       <button class="tb-btn accent" onclick="openSheet('shAddBook')">+ Book</button>
     </div>
@@ -523,7 +535,9 @@ input[type=range] { width: 100%; accent-color: var(--gold); cursor: pointer; hei
     <button class="tb-back" onclick="goBack('sChapter','sBook')">‹ Back</button>
     <div class="tb-title sub" id="chScreenTitle" style="font-size:13px;">Chapter</div>
     <div class="tb-actions">
-      <button class="tb-btn" onclick="openSheet('shChMenu')">•••</button>
+      <button class="tb-btn" id="readToggleBtn" onclick="toggleReadStatus()" style="font-size:13px;">○ Unread</button>
+      <button class="tb-btn" onclick="openFontPicker()" style="font-size:15px;">Aa</button>
+      <button class="tb-btn" onclick="openChapterMenu()">•••</button>
     </div>
   </div>
   <div class="ch-mode-bar" id="modebar"></div>
@@ -591,14 +605,17 @@ input[type=range] { width: 100%; accent-color: var(--gold); cursor: pointer; hei
 <div class="sheet-ov" id="shChMenu" onclick="sheetOvClick(event,'shChMenu')">
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-title">Chapter Options</div>
+    <div class="sheet-title">Edit Chapter</div>
     <div class="sheet-body">
-      <div class="danger-row" style="margin-top:0;padding:0;">
+      <div class="field"><label>Chapter Number / Label</label><input id="eCNum" placeholder="e.g. Chapter 42"></div>
+      <div class="field"><label>Chapter Title</label><input id="eCTitle" placeholder="e.g. The Storm Arrives"></div>
+      <div style="margin-top:8px;padding-top:16px;border-top:1px solid var(--border);">
         <button class="danger-btn" onclick="deleteChapter()">Delete This Chapter</button>
       </div>
     </div>
     <div class="sheet-footer">
-      <button class="sheet-btn ghost" onclick="closeSheet('shChMenu')">Close</button>
+      <button class="sheet-btn ghost" onclick="closeSheet('shChMenu')">Cancel</button>
+      <button class="sheet-btn primary" onclick="saveChapterEdit()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -689,6 +706,43 @@ input[type=range] { width: 100%; accent-color: var(--gold); cursor: pointer; hei
   </div>
 </div>
 
+
+<!-- API Key Sheet -->
+<div class="sheet-ov" id="shApiKey" onclick="sheetOvClick(event,'shApiKey')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🔑 AI Summaries Setup</div>
+    <div class="sheet-body">
+      <div style="background:var(--panel);border:1px solid var(--gold);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">How it works</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65;">AI summaries use the Anthropic API. You need a free API key — costs fractions of a cent per summary. Your key is stored only on your device.</div>
+      </div>
+      <div class="field">
+        <label>Your Anthropic API Key</label>
+        <input id="fApiKey" type="password" placeholder="sk-ant-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      </div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:12px;">Get a free key at <strong style="color:var(--gold);">console.anthropic.com</strong> → sign up → API Keys → Create Key</div>
+      <div id="apiKeyStatus" style="font-size:13px;color:var(--green2);font-family:var(--font-mono);min-height:20px;"></div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn ghost" onclick="closeSheet('shApiKey')">Cancel</button>
+      <button class="sheet-btn primary" onclick="saveApiKey()">Save Key</button>
+    </div>
+  </div>
+</div>
+
+<!-- Font Picker Sheet -->
+<div class="sheet-ov" id="shFonts" onclick="sheetOvClick(event,'shFonts')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Reading Font</div>
+    <div class="sheet-body" id="fontPickerBody"></div>
+    <div class="sheet-footer">
+      <button class="sheet-btn ghost" onclick="closeSheet('shFonts')">Done</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── STATE ──
 let library = [];
@@ -734,6 +788,7 @@ function restoreSession() {
         goTo('sChapter');
         // Restore scroll after a tick
         if (s.scrollPos) setTimeout(() => { const el = document.getElementById('chScroll'); if (el) el.scrollTop = s.scrollPos; }, 120);
+        setTimeout(() => updateReadToggleBtn(ch.read), 80);
         return;
       }
     }
@@ -757,7 +812,20 @@ loadVoices();
 
 function fillVoiceSel(sel) {
   const vs = ttsVoices.length ? ttsVoices : speechSynthesis.getVoices();
-  sel.innerHTML = vs.map((v, i) => `<option value="${i}">${v.name}</option>`).join('');
+  sel.innerHTML = vs.map((v, i) => {
+    const quality = v.name.includes('Enhanced') || v.name.includes('Premium') || v.name.includes('Natural') ? ' ⭐' : '';
+    return `<option value="${i}">${v.name}${quality}</option>`;
+  }).join('');
+  // Auto-select best available voice
+  const best = vs.findIndex(v =>
+    v.name.includes('Enhanced') || v.name.includes('Premium') ||
+    v.name.includes('Samantha') || v.name.includes('Karen') ||
+    v.name.includes('Daniel') || v.name.includes('Natural')
+  );
+  if (best >= 0 && !ttsVoice) {
+    sel.value = best;
+    ttsVoice = vs[best];
+  }
 }
 function setVoice(i) { ttsVoice = ttsVoices[+i] || null; }
 
@@ -783,7 +851,14 @@ function speakFrom(idx) {
   updateTTSUI(); speakNext();
 }
 function speakNext() {
-  if (ttsIdx >= ttsParagraphs.length) { ttsPlaying = false; updateTTSUI(); const _tts=document.getElementById('sTTSLbl');if(_tts)_tts.style.display='none'; clearHL(); return; }
+  if (ttsIdx >= ttsParagraphs.length) {
+    ttsPlaying = false; ttsIdx = 0;  // reset to 0 so replay works
+    updateTTSUI();
+    const _tts=document.getElementById('sTTSLbl');if(_tts)_tts.style.display='none';
+    clearHL();
+    const st=document.getElementById('ttsStatTxt');if(st)st.textContent='Done. Tap ▶ to replay.';
+    return;
+  }
   clearHL();
   const el = document.getElementById('tp-' + ttsIdx);
   if (el) { el.classList.add('hl'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
@@ -960,7 +1035,8 @@ function renderBook(bk) {
 function openChapter(bk, cid) {
   stopTTS(); activeCid = cid;
   const ch = bk.chapters.find(c => c.id === cid);
-  ch.read = true; save(); renderBook(bk); renderLibrary();
+  // Read status is manual — user taps the toggle button
+  renderBook(bk); renderLibrary();
   document.getElementById('chScreenTitle').textContent = ch.num + (ch.title ? ' — ' + ch.title : '');
   if (!ch.text) curMode = 'paste';
   else curMode = 'read';
@@ -968,6 +1044,7 @@ function openChapter(bk, cid) {
   renderMode(bk, ch);
   goTo('sChapter');
   document.getElementById('chScroll').scrollTop = 0;
+  setTimeout(() => updateReadToggleBtn(ch.read), 50);
 }
 
 function renderModebar(bid, cid) {
@@ -1006,7 +1083,10 @@ function renderRead(wrap, ch) {
     wrap.innerHTML = `<div class="read-wrap"><p style="color:var(--text3);font-style:italic;font-size:15px;padding-top:20px;">No text yet — tap Edit Text to paste content.</p></div>`;
     return;
   }
-  const paras = ch.text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+  // Strip common divider patterns authors use (Patreon, Royal Road, etc.)
+  const DIVIDER = /^(\*+|\*\s*\*\s*\*|[-—_]{2,}|#{1,3}|~+|=+|\+ \+ \+|o\s*o\s*o)$/i;
+  const rawParas = ch.text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+  const paras = rawParas.filter(p => !DIVIDER.test(p));
   ttsParagraphs = paras; ttsIdx = 0; ttsPlaying = false;
   const parasHTML = paras.map((p, i) => `<div class="para" id="tp-${i}">${p.replace(/\n/g,'<br>')}</div>`).join('');
   wrap.innerHTML = `<div class="read-wrap">
@@ -1043,6 +1123,119 @@ function renderRead(wrap, ch) {
     ${parasHTML}
   </div>`;
   const sel = document.getElementById('ttsVoiceSel'); fillVoiceSel(sel);
+}
+
+
+
+// ── READ / UNREAD TOGGLE ──
+function toggleReadStatus() {
+  const bk = library.find(b => b.id === activeBid);
+  const ch = bk ? bk.chapters.find(c => c.id === activeCid) : null;
+  if (!ch) return;
+  ch.read = !ch.read;
+  save();
+  renderBook(bk);
+  renderLibrary();
+  updateReadToggleBtn(ch.read);
+}
+
+function updateReadToggleBtn(isRead) {
+  const btn = document.getElementById('readToggleBtn');
+  if (!btn) return;
+  btn.textContent = isRead ? '✓ Read' : '○ Unread';
+  btn.style.borderColor = isRead ? 'var(--gold)' : '';
+  btn.style.color = isRead ? 'var(--gold)' : '';
+}
+
+// ── CHAPTER EDIT ──
+function openChapterMenu() {
+  const bk = library.find(b => b.id === activeBid);
+  const ch = bk ? bk.chapters.find(c => c.id === activeCid) : null;
+  if (!ch) return;
+  document.getElementById('eCNum').value = ch.num;
+  document.getElementById('eCTitle').value = ch.title || '';
+  openSheet('shChMenu');
+}
+
+function saveChapterEdit() {
+  const bk = library.find(b => b.id === activeBid);
+  const ch = bk ? bk.chapters.find(c => c.id === activeCid) : null;
+  if (!ch) return;
+  const newNum = document.getElementById('eCNum').value.trim();
+  const newTitle = document.getElementById('eCTitle').value.trim();
+  if (!newNum) return;
+  ch.num = newNum;
+  ch.title = newTitle;
+  save();
+  renderBook(bk);
+  document.getElementById('chScreenTitle').textContent = ch.num + (ch.title ? ' — ' + ch.title : '');
+  renderModebar(bk.id, ch.id);
+  closeSheet('shChMenu');
+}
+
+// ── FONT PICKER ──
+const FONTS = [
+  { name: 'Palatino', label: 'Palatino', stack: "Palatino Linotype, Palatino, Book Antiqua, Georgia, serif", preview: 'The wanderer reads on…' },
+  { name: 'Georgia', label: 'Georgia', stack: "Georgia, Times New Roman, serif", preview: 'The wanderer reads on…' },
+  { name: 'Baskerville', label: 'Baskerville', stack: "Baskerville, Baskerville Old Face, Garamond, Times New Roman, serif", preview: 'The wanderer reads on…' },
+  { name: 'System Serif', label: 'System Serif', stack: "ui-serif, Georgia, serif", preview: 'The wanderer reads on…' },
+  { name: 'Iowan Old Style', label: 'Iowan (iOS)', stack: "Iowan Old Style, Georgia, serif", preview: 'The wanderer reads on…' },
+  { name: 'Optima', label: 'Optima (Sans-Serif)', stack: "Optima, Candara, Segoe UI, sans-serif", preview: 'The wanderer reads on…' },
+];
+
+let activeFont = localStorage.getItem('folio_font') || 'Palatino';
+
+function applyFont(name) {
+  const font = FONTS.find(f => f.name === name) || FONTS[0];
+  document.querySelectorAll('.para, .read-mode p').forEach(el => el.style.fontFamily = font.stack);
+  // Store CSS var for new renders
+  document.documentElement.style.setProperty('--read-font', font.stack);
+  activeFont = name;
+  localStorage.setItem('folio_font', name);
+}
+
+function openFontPicker() {
+  const body = document.getElementById('fontPickerBody');
+  body.innerHTML = FONTS.map(f => `
+    <div class="font-opt-row" onclick="applyFont('${f.name}');renderFontPicker();">
+      <div>
+        <div class="font-opt-preview" style="font-family:${f.stack}">${f.preview}</div>
+        <div class="font-opt-name">${f.label}</div>
+      </div>
+      <div class="font-opt-check">${activeFont === f.name ? '✓' : ''}</div>
+    </div>`).join('');
+  openSheet('shFonts');
+}
+
+function renderFontPicker() {
+  const body = document.getElementById('fontPickerBody');
+  if (!body) return;
+  body.innerHTML = FONTS.map(f => `
+    <div class="font-opt-row" onclick="applyFont('${f.name}');renderFontPicker();">
+      <div>
+        <div class="font-opt-preview" style="font-family:${f.stack}">${f.preview}</div>
+        <div class="font-opt-name">${f.label}</div>
+      </div>
+      <div class="font-opt-check">${activeFont === f.name ? '✓' : ''}</div>
+    </div>`).join('');
+}
+
+// ── API KEY ──
+function saveApiKey() {
+  const key = document.getElementById('fApiKey').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    document.getElementById('apiKeyStatus').textContent = '✗ Key should start with sk-ant-';
+    document.getElementById('apiKeyStatus').style.color = '#c44';
+    return;
+  }
+  localStorage.setItem('folio_api_key', key);
+  document.getElementById('apiKeyStatus').textContent = '✓ Key saved! AI summaries are ready.';
+  document.getElementById('apiKeyStatus').style.color = 'var(--green2)';
+  setTimeout(() => closeSheet('shApiKey'), 1500);
+}
+
+function getApiKey() {
+  return localStorage.getItem('folio_api_key') || '';
 }
 
 // ── SUMMARY MODE ──
@@ -1087,8 +1280,14 @@ Respond ONLY in HTML with <h4>,<ul>,<li>,<p> tags. No markdown, no backticks, no
 Sections: Plot Mechanics | Character Development | Themes & Motifs | Foreshadowing & Setup | Writing Craft Notes | Open Questions
 Book: "${bk.title}" by ${bk.author||'Unknown'} | Chapter: ${ch.num}${ch.title?' — '+ch.title:''}
 Text: ${ch.text.slice(0,9000)}`;
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    if (out) out.innerHTML = '<div class="ai-ph">⚠ No API key set.<br><br><button onclick="openSheet(\'shApiKey\')" style="background:var(--accent);border:none;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;cursor:pointer;margin-top:8px;">Set Up API Key</button></div>';
+    if (btn) btn.disabled = false; if (card) card.classList.remove('loading');
+    return;
+  }
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] }) });
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: {'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] }) });
     const d = await r.json();
     const txt = d.content?.map(b => b.text||'').join('') || 'No response.';
     sumCache[`${cid}_${sumLevel}`] = txt;
@@ -1255,6 +1454,11 @@ window.onerror = function(msg, src, line, col, err) {
 try {
   renderLibrary();
   updateStatus();
+  // Restore font preference
+  if (localStorage.getItem("folio_font")) applyFont(localStorage.getItem("folio_font"));
+  // Pre-fill API key field if saved
+  const savedKey = localStorage.getItem("folio_api_key");
+  if (savedKey) { const f = document.getElementById("fApiKey"); if(f) f.value = savedKey; }
   if (library.length > 0) {
     restoreSession();
   }
